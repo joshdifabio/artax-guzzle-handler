@@ -20,10 +20,12 @@ class ArtaxHandler
 
     public function __invoke(RequestInterface $request, array $options)
     {
-        $guzzleResponsePromise = new Promise;
-
         $artaxRequest = $this->convertRequest($request, $options);
         $artaxResponsePromise = $this->artaxClient->request($artaxRequest);
+
+        $guzzleResponsePromise = new Promise(function () use ($artaxResponsePromise) {
+            \Amp\wait($artaxResponsePromise);
+        });
 
         $artaxResponsePromise->when(
             function ($error = null, Response $artaxResponse = null) use ($request, $options, $guzzleResponsePromise) {
@@ -51,7 +53,8 @@ class ArtaxHandler
         $artaxRequest->setUri((string)$request->getUri());
         $artaxRequest->setAllHeaders($request->getHeaders());
 
-        if ($body = $request->getBody()) {
+        $body = $request->getBody();
+        if ($body->getSize() === null || $body->getSize() > 0) {
             if (!$bodyResource = $body->detach()) {
                 $bodyResource = fopen('php://temp', 'r+');
                 $bodyStream = \GuzzleHttp\Psr7\stream_for($bodyResource);
