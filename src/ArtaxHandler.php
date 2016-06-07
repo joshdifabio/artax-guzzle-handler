@@ -3,7 +3,6 @@ namespace ArtaxGuzzleBridge;
 
 use Amp\Artax\HttpClient;
 use Amp\Artax\Request;
-use Amp\Artax\ResourceIterator;
 use Amp\Artax\Response;
 use GuzzleHttp\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
@@ -55,17 +54,8 @@ class ArtaxHandler
 
         $body = $request->getBody();
         if ($body->getSize() === null || $body->getSize() > 0) {
-            if (!$bodyResource = $body->detach()) {
-                $bodyResource = fopen('php://temp', 'r+');
-                $bodyStream = \GuzzleHttp\Psr7\stream_for($bodyResource);
-                \GuzzleHttp\Psr7\copy_to_stream($request->getBody(), $bodyStream);
-                if (!$request->getBody()->eof()) {
-                    throw new \LogicException('Request body must be complete before attempting to send request.');
-                }
-                rewind($bodyResource);
-            }
-
-            $artaxRequest->setBody(new ResourceIterator($bodyResource));
+            $body->rewind();
+            $artaxRequest->setBody(new PsrStreamIterator($body));
         }
 
         return $artaxRequest;
